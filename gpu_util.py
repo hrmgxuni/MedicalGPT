@@ -21,7 +21,7 @@ class GPUConsoleLogger:
         console_handler.setLevel(logging.INFO)
 
         # 创建一个格式化器，定义日志格式
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s - %(filename)s:%(lineno)d')
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(formatter)
         console_handler.setFormatter(formatter)
 
@@ -43,7 +43,7 @@ class GPUConsoleLogger:
         current_memory = int(output.decode().strip().split()[0])
         return current_memory
 
-    def log_gpu_usage(self, *args):
+    def use(self, *args):
         description = args[0] if args else ""
         total_memory = self.get_total_memory()
         current_memory = self.get_current_memory_usage()
@@ -53,12 +53,13 @@ class GPUConsoleLogger:
         frame = inspect.currentframe().f_back
         filename = frame.f_code.co_filename
         lineno = frame.f_lineno
-
-        output = f"{description} 显存占用百分比：{percentage:.2f}%，当前占用/总显存：{current_memory}/{total_memory}MB。"
+        output = f"{description} 显存占用百分比：{percentage:.2f}%，当前占用/总显存：{current_memory}/{total_memory}MB。 File \"{filename}\", line {lineno}"
         self.logger.info(output)
+
+
 
 
 # 示例用法
 if __name__ == "__main__":
     logger = GPUConsoleLogger()
-    logger.log_gpu_usage("自定义描述文本")
+    logger.use("自定义描述文本")

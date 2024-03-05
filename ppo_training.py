@@ -43,7 +43,7 @@ MODEL_CLASSES = {
 
 import gpu_util
 
-logger = gpu_util.GPUConsoleLogger()
+gpu_logger = gpu_util.GPUConsoleLogger()
 
 
 @dataclass
@@ -222,6 +222,31 @@ def calculate_rewards(reward_score_outputs, reward_baseline=0):
     return rewards
 
 
+# def write_ppo_train(train: UploadFile = File(...)):
+def write_ppo_train(train):
+    # 保存训练集和评估集的 JSON 文件
+    with open(f"./data/ppo-train.json", "wb") as f:
+        f.write(train.read())
+
+    converted_data_str = ""
+    with open(f"./data/ppo-train.json", "r") as f:
+        data = f.read()
+        for item in data:
+            converted_data = {"conversations": []}
+            converted_data["conversations"].append({"from": "human", "value": f"{item['instruction']} {item['input']}"})
+            converted_data_str += f"{converted_data}\n"
+
+        # print(converted_data_str
+        with open("./data/finetune/ppo_train_formate.json", "w") as train_file:
+            train_file.write(converted_data_str)
+
+        converted_data = {"conversations": []}
+        for item in data:
+            converted_data["conversations"].append({"from": "human", "value": f"{item['instruction']} {item['input']}"})
+            converted_data["conversations"].append({"from": "gpt", "value": item["output"]})
+    return converted_data
+
+
 def main():
     # 1 从命令行解析参数
     parser = HfArgumentParser(ScriptArguments)
@@ -231,12 +256,16 @@ def main():
     config_class, model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
     if args.model_type == 'bloom':
         args.use_fast_tokenizer = True
+
+    gpu_logger.use("加载 tokenizer 前")
     # 2 加载tokenizer
     tokenizer_kwargs = {
         "cache_dir": args.cache_dir,
         "use_fast": args.use_fast_tokenizer,
         "trust_remote_code": args.trust_remote_code,
     }
+    gpu_logger.use("加载 tokenizer 后")
+
     tokenizer_name_or_path = args.tokenizer_name_or_path
     # 如果tokenizer_name_or_path为空，则将采用模型的分词器
     if not tokenizer_name_or_path:
@@ -264,6 +293,7 @@ def main():
         if args.torch_dtype in ["auto", None]
         else getattr(torch, args.torch_dtype)
     )
+
     world_size = int(os.environ.get("WORLD_SIZE", "1"))
     if world_size > 1:
         args.device_map = {"": int(os.environ.get("LOCAL_RANK", "0"))}
@@ -283,6 +313,8 @@ def main():
         trust_remote_code=args.trust_remote_code,
         peft_config=peft_config if args.use_peft else None,
     )
+    gpu_logger.use("加载 model")
+
     for param in filter(lambda p: p.requires_grad, model.parameters()):
         param.data = param.data.to(torch.float32)
 
@@ -302,10 +334,13 @@ def main():
         load_in_8bit=args.load_in_8bit,
         trust_remote_code=args.trust_remote_code,
     )
+    gpu_logger.use("加载 reward_model")
+
     reward_model.to(device)
     reward_tokenizer = AutoTokenizer.from_pretrained(
         args.reward_model_name_or_path, **tokenizer_kwargs
     )
+    gpu_logger.use("加载 reward_tokenizer")
 
     # Get datasets
     if args.dataset_name is not None:
@@ -359,6 +394,7 @@ def main():
                 split=f"train[{args.validation_split_percentage}%:]",
                 cache_dir=args.cache_dir,
             )
+        gpu_logger.use("加载 raw_datasets")
     logger.info(f"Raw datasets: {raw_datasets}")
 
     # Preprocessing the datasets
@@ -441,6 +477,7 @@ def main():
         train_dataset = tokenized_dataset.filter(
             lambda x: len(x['input_ids']) > 0
         )
+        gpu_logger.use("if args.do_train: 加载 train_dataset")
         logger.debug(f"Num train_samples: {len(train_dataset)}")
 
     def collator(data):
@@ -475,6 +512,7 @@ def main():
         dataset=train_dataset,
         data_collator=collator,
     )
+    gpu_logger.use("加载 PPOTrainer")
 
     # These arguments are passed to the `generate` function of the PPOTrainer
     generation_kwargs = {
@@ -484,12 +522,15 @@ def main():
         "top_p": 1.0,
         "do_sample": True,
     }
+    gpu_logger.use("加载 generation_kwargs")
 
     # Training
     if args.do_train:
         logger.info("*** Train ***")
+        gpu_logger.use("Train 前")
         total_steps = config.total_ppo_epochs
         for step, batch in tqdm(enumerate(trainer.dataloader)):
+            gpu_logger.use(f"Train 中 step={step}")
             if step >= total_steps:
                 break
             question_tensors = batch["input_ids"]
@@ -525,6 +566,8 @@ def main():
             if step and step % args.save_steps == 0:
                 save_dir = os.path.join(output_dir, f"checkpoint-{step}")
                 trainer.save_pretrained(save_dir)
+
+        gpu_logger.use(f"Train 后")
         # Save final model
         trainer.save_pretrained(output_dir)
 
