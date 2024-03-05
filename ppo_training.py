@@ -41,6 +41,10 @@ MODEL_CLASSES = {
     "auto": (AutoConfig, AutoModelForCausalLM, AutoTokenizer),
 }
 
+import gpu_util
+
+logger = gpu_util.GPUConsoleLogger()
+
 
 @dataclass
 class ScriptArguments:
@@ -219,6 +223,7 @@ def calculate_rewards(reward_score_outputs, reward_baseline=0):
 
 
 def main():
+    # 1 从命令行解析参数
     parser = HfArgumentParser(ScriptArguments)
     args = parser.parse_args_into_dataclasses()[0]
     logger.info(f"Parse args: {args}")
@@ -226,13 +231,14 @@ def main():
     config_class, model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
     if args.model_type == 'bloom':
         args.use_fast_tokenizer = True
-    # Load tokenizer
+    # 2 加载tokenizer
     tokenizer_kwargs = {
         "cache_dir": args.cache_dir,
         "use_fast": args.use_fast_tokenizer,
         "trust_remote_code": args.trust_remote_code,
     }
     tokenizer_name_or_path = args.tokenizer_name_or_path
+    # 如果tokenizer_name_or_path为空，则将采用模型的分词器
     if not tokenizer_name_or_path:
         tokenizer_name_or_path = args.model_name_or_path
     tokenizer = tokenizer_class.from_pretrained(tokenizer_name_or_path, **tokenizer_kwargs)
@@ -370,25 +376,36 @@ def main():
         def get_prompt(examples):
             for i, source in enumerate(examples['conversations']):
                 if len(source) < 2:
-                    continue
+                    continue  # 如果少于2条消息，则跳过到下一个例子
+                # 获取对话中第一条消息的角色
                 data_role = source[0].get("from", "")
+                # 检查角色是否不在指定的角色列表中，或者是否不是预期的角色
                 if data_role not in roles or data_role != roles[0]:
-                    # Skip the first one if it is not from human
+                    # 如果第一条消息不是预期的角色，则跳过第一条消息
                     source = source[1:]
+                # 跳过第一条消息后，检查对话长度是否仍小于2
                 if len(source) < 2:
-                    continue
+                    continue  # 如果仍少于2条消息，则跳过到下一个例子
                 messages = []
+                # 遍历对话中的每条消息
                 for j, sentence in enumerate(source):
+                    # 获取消息的角色
                     data_role = sentence.get("from", "")
+                    # 检查角色是否不在指定的角色列表中
                     if data_role not in roles:
+                        # 记录警告消息并忽略此消息
                         logger.warning(f"unknown role: {data_role}, {i}. (ignored)")
-                        break
+                        break  # 停止处理此例子
+                    # 检查消息的角色是否与当前对话轮次的预期角色匹配
                     if data_role == roles[j % 2]:
+                        # 将消息内容添加到消息列表中
                         messages.append(sentence["value"])
+                # 检查消息数量是否少于2或是否为奇数条消息
                 if len(messages) < 2 or len(messages) % 2 != 0:
-                    continue
-                # Convert the list to pairs of elements
+                    continue  # 如果消息数量不是偶数或少于2，则跳过到下一个例子
+                # 将消息列表转换为成对的元素
                 history_messages = [[messages[k], messages[k + 1]] for k in range(0, len(messages), 2)]
+                # 返回生成的提示
                 yield prompt_template.get_prompt(history_messages)
 
         for prompt in get_prompt(examples):
