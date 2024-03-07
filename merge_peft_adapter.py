@@ -35,19 +35,29 @@ MODEL_CLASSES = {
     "auto": (AutoModelForCausalLM, AutoTokenizer),
 }
 
+class Args:
+    def __init__(self):
+        # 设置参数的默认值
+        self.model_type = "bloom"
+        self.base_model = "D:/TPHY/bigscience/bloomz-560m"
+        self.tokenizer_path = None
+        self.lora_model = "./outputs-rl-bloom-v1"
+        self.resize_emb = False
+        self.output_dir = './merged'
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--model_type', default=None, type=str, required=True)
-    parser.add_argument('--base_model', default=None, required=True, type=str,
-                        help="Base model name or path")
-    parser.add_argument('--tokenizer_path', default=None, type=str,
-                        help="Please specify tokenization path.")
-    parser.add_argument('--lora_model', default=None, required=True, type=str,
-                        help="Please specify LoRA model to be merged.")
-    parser.add_argument('--resize_emb', action='store_true', help='Whether to resize model token embeddings')
-    parser.add_argument('--output_dir', default='./merged', type=str)
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--model_type', default="bloom", type=str, required=True)
+    # parser.add_argument('--base_model', default="D:/TPHY/bigscience/bloomz-560m", required=True, type=str,
+    #                     help="Base model name or path")
+    # parser.add_argument('--tokenizer_path', default="D:/TPHY/bigscience/bloomz-560m", type=str,
+    #                     help="Please specify tokenization path.")
+    # parser.add_argument('--lora_model', default="D:/TPHY/bigscience/bloomz-560m", required=True, type=str,
+    #                     help="Please specify LoRA model to be merged.")
+    # parser.add_argument('--resize_emb', action='store_true', help='Whether to resize model token embeddings')
+    # parser.add_argument('--output_dir', default='./merged', type=str)
+    # args = parser.parse_args()
+    args = Args()
     print(args)
 
     base_model_path = args.base_model

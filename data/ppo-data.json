@@ -1,4 +1,4 @@
-{
+[{
 	"id": "20231219",
 	"dict": {
      "num_train_epochs": 2,
@@ -7,4 +7,4 @@
      "lr_scheduler_type": "cosine",
      "warmup_steps": 0
 	}
-}
+}]

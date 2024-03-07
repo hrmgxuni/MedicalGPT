@@ -42,7 +42,7 @@ def load_jieba_vocab(jieba_vocab_file):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--base_tokenizer_dir', default=None, type=str, required=True)
+    parser.add_argument('--base_tokenizer_dir', default="D:/TPHY/bigscience/bloomz-560m", type=str, required=True)
     parser.add_argument('--domain_sp_model_file', default='./domain_sp.model', type=str)
     parser.add_argument('--baichuan_vocab_file', default="data/vocab/baichuan_vocab.txt", type=str)
     parser.add_argument('--add_jieba', action='store_true', help='Whether to add jieba vocab.')
