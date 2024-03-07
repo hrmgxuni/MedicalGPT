@@ -53,7 +53,7 @@ class ScriptArguments:
     """
     # Model arguments
     model_type: str = field(
-        default=None,
+        default="bloom",
         metadata={"help": "Model type selected in the list: " + ", ".join(MODEL_CLASSES.keys())}
     )
     model_name_or_path: Optional[str] = field(
@@ -222,35 +222,14 @@ def calculate_rewards(reward_score_outputs, reward_baseline=0):
     return rewards
 
 
-# def write_ppo_train(train: UploadFile = File(...)):
-def write_ppo_train(train):
-    # 保存训练集和评估集的 JSON 文件
-    with open(f"./data/ppo-train.json", "wb") as f:
-        f.write(train.read())
-
-    converted_data_str = ""
-    with open(f"./data/ppo-train.json", "r") as f:
-        data = f.read()
-        for item in data:
-            converted_data = {"conversations": []}
-            converted_data["conversations"].append({"from": "human", "value": f"{item['instruction']} {item['input']}"})
-            converted_data_str += f"{converted_data}\n"
-
-        # print(converted_data_str
-        with open("./data/finetune/ppo_train_formate.json", "w") as train_file:
-            train_file.write(converted_data_str)
-
-        converted_data = {"conversations": []}
-        for item in data:
-            converted_data["conversations"].append({"from": "human", "value": f"{item['instruction']} {item['input']}"})
-            converted_data["conversations"].append({"from": "gpt", "value": item["output"]})
-    return converted_data
 
 
-def main():
+def main(args):
     # 1 从命令行解析参数
-    parser = HfArgumentParser(ScriptArguments)
-    args = parser.parse_args_into_dataclasses()[0]
+    # parser = HfArgumentParser(ScriptArguments)
+    # args = parser.parse_args_into_dataclasses()[0]
+    # 初始化ScriptArguments对象
+
     logger.info(f"Parse args: {args}")
 
     config_class, model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
@@ -571,6 +550,33 @@ def main():
         # Save final model
         trainer.save_pretrained(output_dir)
 
+def main2():
+    request = ScriptArguments(
+        model_type="bloom",
+        model_name_or_path="D:/TPHY/bigscience/bloomz-560m",
+        reward_model_name_or_path="D:/TPHY/bigscience/bloomz-560m",
+        torch_dtype="float16",
+        device_map="auto",
+        train_file_dir="./data/finetune",
+        validation_file_dir="./data/finetune",
+        batch_size=8,
+        max_source_length=256,
+        max_target_length=256,
+        max_train_samples=1000,
+        use_peft=True,
+        lora_rank=8,
+        lora_alpha=16,
+        lora_dropout=0.05,
+        do_train=True,
+        max_steps=100,
+        learning_rate=1e-5,
+        save_steps=50,
+        output_dir="outputs-rl-bloom-v1",
+        early_stopping=True,
+        target_kl=0.1,
+        reward_baseline=0.0
+    )
+    main(request)
 
 if __name__ == "__main__":
-    main()
+    main2()

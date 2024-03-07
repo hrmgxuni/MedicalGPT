@@ -98,10 +98,12 @@ class Item(BaseModel):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_type', default=None, type=str, required=True)
-    parser.add_argument('--base_model', default=None, type=str, required=True)
-    parser.add_argument('--lora_model', default="", type=str, help="If None, perform inference on the base model")
-    parser.add_argument('--tokenizer_path', default=None, type=str)
+    # parser.add_argument('--model_type', default="bloom", type=str, required=True)
+    parser.add_argument('--model_type', default="bloom", type=str)
+    parser.add_argument('--base_model', default="D:/TPHY/bigscience/bloomz-560m", type=str)
+    # parser.add_argument('--base_model', default="D:/TPHY/bigscience/bloomz-560m", type=str, required=True)
+    parser.add_argument('--lora_model', default="D:/TPHY/bigscience/bloomz-560m", type=str, help="If None, perform inference on the base model")
+    parser.add_argument('--tokenizer_path', default="D:/TPHY/bigscience/bloomz-560m", type=str)
     parser.add_argument('--template_name', default="vicuna", type=str,
                         help="Prompt template name, eg: alpaca, vicuna, baichuan, chatglm2 etc.")
     parser.add_argument("--repetition_penalty", default=1.0, type=float)
